@@ -21,8 +21,8 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Target URL for scraping
-TARGET_URL = "https://www.bolagsplatsen.se/foretag-till-salu"
+# Target URL for scraping (updated to follow redirect)
+TARGET_URL = "https://www.bolagsplatsen.se/foretag-till-salu/alla/alla"
 
 @app.get("/scrape", response_model=List[Dict[str, str]])
 async def scrape_business_listings():
@@ -43,7 +43,7 @@ async def scrape_business_listings():
         test_response = {"status": "starting_scrape", "target_url": TARGET_URL}
         logger.info(f"Test response: {test_response}")
         
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
             # Add headers to mimic a real browser request
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
