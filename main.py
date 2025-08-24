@@ -55,12 +55,13 @@ async def scrape_business_listings():
             
             response = await client.get(TARGET_URL, headers=headers)
             response.raise_for_status()  # Raise exception for HTTP error status codes
+            response.encoding = 'utf-8'  # Ensure proper UTF-8 encoding
             
         logger.info(f"Successfully fetched page content. Status code: {response.status_code}")
         logger.info(f"Response content length: {len(response.content)}")
         
         # Parse HTML content using BeautifulSoup with html.parser (built-in)
-        soup = BeautifulSoup(response.content, 'html.parser')
+        soup = BeautifulSoup(response.text, 'html.parser')  # Use .text instead of .content for proper encoding
         
         # Debug: Check if we can find any content
         logger.info(f"Page title: {soup.title.string if soup.title else 'No title found'}")
