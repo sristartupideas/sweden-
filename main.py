@@ -135,7 +135,7 @@ class ComprehensiveSwedishScraper:
                             contact_info = self._extract_bolagsplatsen_contact(detail_html)
                             if contact_info:
                                 contact_json = json.dumps(contact_info).replace('"', "'")
-                                comment = f""
+                                comment = f"<!-- CONTACT_DATA: {contact_json} -->"
                                 detail_html = detail_html.replace('</body>', f"{comment}\n</body>")
                             
                             details.append(detail_html)
@@ -587,6 +587,74 @@ async def test_bolagsplatsen_scraping():
             "message": str(e)
         }
 
+@app.get("/test-bolagsplatsen")
+async def test_bolagsplatsen_scraping():
+    """Test endpoint to debug Bolagsplatsen scraping"""
+    try:
+        async with ComprehensiveSwedishScraper() as scraper:
+            # Test a single page first
+            url = "https://www.bolagsplatsen.se/foretag-till-salu/alla/alla"
+            
+            logger.info(f"Testing Bolagsplatsen page: {url}")
+            
+            # Try HTTP request first
+            async with scraper.session.get(url) as response:
+                if response.status == 200:
+                    html = await response.text(encoding='utf-8', errors='replace')
+                    
+                    # Parse with BeautifulSoup
+                    soup = BeautifulSoup(html, 'html.parser')
+                    
+                    # Look for all links
+                    all_links = soup.find_all('a', href=True)
+                    business_links = []
+                    
+                    # Check different patterns
+                    patterns = [
+                        r'/foretag-till-salu/[^/]+$',
+                        r'/foretag-till-salu/[^/?]+',
+                        r'foretag.*till.*salu',
+                        r'business',
+                        r'company'
+                    ]
+                    
+                    for link in all_links:
+                        href = link.get('href', '').lower()
+                        text = link.get_text().lower()
+                        
+                        # Check if it matches any pattern
+                        for pattern in patterns:
+                            if re.search(pattern, href) or re.search(pattern, text):
+                                business_links.append({
+                                    'href': link.get('href'),
+                                    'text': link.get_text().strip()[:100],
+                                    'class': link.get('class', [])
+                                })
+                                break
+                    
+                    return {
+                        "status": "success",
+                        "url": url,
+                        "total_links_found": len(all_links),
+                        "business_links_found": len(business_links),
+                        "business_links": business_links[:20],  # First 20 for debugging
+                        "page_title": soup.find('title').get_text() if soup.find('title') else "No title found"
+                    }
+                else:
+                    return {
+                        "status": "error",
+                        "url": url,
+                        "status_code": response.status,
+                        "message": "Failed to fetch page"
+                    }
+                    
+    except Exception as e:
+        logger.error(f"Test scraping failed: {e}")
+        return {
+            "status": "error",
+            "message": str(e)
+        }
+
 @app.get("/test-browser")
 async def test_browser_scraping():
     """Test browser automation for Bolagsplatsen"""
@@ -609,3 +677,4 @@ async def test_browser_scraping():
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
+    
