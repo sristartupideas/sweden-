@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Install Playwright browsers if not already installed
-if [ ! -d "/root/.cache/ms-playwright" ]; then
+if [ ! -d "/opt/render/.cache/ms-playwright" ]; then
     echo "Installing Playwright browsers..."
-    playwright install chromium
-    playwright install-deps chromium
+    playwright install
+    playwright install-deps
 fi
 
 # Start the FastAPI application
