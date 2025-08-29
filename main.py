@@ -44,11 +44,17 @@ class ComprehensiveSwedishScraper:
             timeout=aiohttp.ClientTimeout(total=60)
         )
         
-        self.playwright = await async_playwright().start()
-        self.browser = await self.playwright.chromium.launch(
-            headless=True,
-            args=['--no-sandbox', '--disable-dev-shm-usage']
-        )
+        try:
+            self.playwright = await async_playwright().start()
+            self.browser = await self.playwright.chromium.launch(
+                headless=True,
+                args=['--no-sandbox', '--disable-dev-shm-usage']
+            )
+        except Exception as e:
+            logger.warning(f"Playwright browser initialization failed: {e}")
+            logger.warning("Browser automation features will be disabled")
+            self.playwright = None
+            self.browser = None
         return self
         
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -156,6 +162,20 @@ class ComprehensiveSwedishScraper:
         pages = []
         details = []
         
+        if not self.browser:
+            logger.warning("Browser not available, trying HTTP-only scraping for Objektvision")
+            # Fallback to HTTP-only scraping
+            try:
+                url = "https://objektvision.se/företag_till_salu"
+                async with self.session.get(url) as response:
+                    if response.status == 200:
+                        html = await response.text(encoding='utf-8', errors='replace')
+                        pages.append(html)
+                        logger.info("Successfully scraped Objektvision with HTTP fallback")
+            except Exception as e:
+                logger.error(f"HTTP fallback for Objektvision failed: {e}")
+            return {"pages": pages, "details": details}
+        
         context = None
         try:
             context = await self.browser.new_context(
@@ -212,6 +232,20 @@ class ComprehensiveSwedishScraper:
         """Browser automation for Lania"""
         pages = []
         details = []
+        
+        if not self.browser:
+            logger.warning("Browser not available, trying HTTP-only scraping for Lania")
+            # Fallback to HTTP-only scraping
+            try:
+                url = "https://www.lania.se/foretag-till-salu/"
+                async with self.session.get(url) as response:
+                    if response.status == 200:
+                        html = await response.text(encoding='utf-8', errors='replace')
+                        pages.append(html)
+                        logger.info("Successfully scraped Lania with HTTP fallback")
+            except Exception as e:
+                logger.error(f"HTTP fallback for Lania failed: {e}")
+            return {"pages": pages, "details": details}
         
         context = None
         try:
@@ -503,10 +537,22 @@ async def scrape_swedish_businesses_comprehensive():
 
 @app.get("/health")
 async def health_check():
+    # Test Playwright availability
+    playwright_status = "unknown"
+    try:
+        async with ComprehensiveSwedishScraper() as scraper:
+            if scraper.browser:
+                playwright_status = "available"
+            else:
+                playwright_status = "unavailable"
+    except Exception as e:
+        playwright_status = f"error: {str(e)}"
+    
     return {
         "status": "healthy", 
         "target_coverage": "80%+",
-        "platforms_targeted": 9
+        "platforms_targeted": 9,
+        "playwright_status": playwright_status
     }
 
 @app.get("/coverage-estimate")
@@ -660,6 +706,14 @@ async def test_browser_scraping():
     """Test browser automation for Bolagsplatsen"""
     try:
         async with ComprehensiveSwedishScraper() as scraper:
+            if not scraper.browser:
+                return {
+                    "status": "warning",
+                    "message": "Browser not available - Playwright may not be properly installed",
+                    "browser_urls_found": 0,
+                    "browser_urls": []
+                }
+            
             browser_urls = await scraper._scrape_bolagsplatsen_with_browser()
             
             return {
