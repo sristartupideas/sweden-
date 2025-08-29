@@ -1,27 +1,11 @@
-# Core async HTTP client
-aiohttp==3.8.6
-
-# HTML parsing
+aiohttp>=3.8.6
 beautifulsoup4==4.12.2
-
-# Browser automation
 playwright==1.39.0
-
-# Web server framework
 fastapi==0.103.2
 uvicorn[standard]==0.23.2
-
-# User agent spoofing
 fake-useragent==1.4.0
-
-# HTML parser for BeautifulSoup
-lxml==4.9.3
-
-# Additional parsing support
+lxml>=4.9.2
 html5lib==1.1
-
-# Optional: For better logging
 colorlog==6.8.0
-
-# Optional: For better error handling
 tenacity==8.2.3
+greenlet>=2.0.0
